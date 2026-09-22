@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- GLOBAL CUSTOM SCROLLBAR FOR DARK THEME --- */
+
+/* Width and height of the scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* The track (background) of the scrollbar */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* The draggable thumb */
+::-webkit-scrollbar-thumb {
+  background-color: #4b5563; /* Tailwind gray-600 */
+  border-radius: 10px;
+}
+
+/* Hover state for the thumb */
+::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280; /* Tailwind gray-500 */
+}
+
+/* Hide the default up/down and left/right arrows */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+
+html, body {
+  color-scheme: dark;
+}
+
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-text-fill-color: white !important; 
+    transition: background-color 5000s ease-in-out 0s !important;
+    background-color: transparent !important;
+}
+
+
+body, .chat-container {
+  -webkit-overflow-scrolling: touch !important; /* पुराने फोंस में स्क्रॉलिंग को स्मूथ बनाता है */
+  overscroll-behavior-y: none; /* स्क्रीन को फालतू में बाउंस होने से रोकता है */
+  -webkit-font-smoothing: antialiased; /* टेक्स्ट को पिक्सल-परफेक्ट और क्रिस्प दिखाता है */
+}
