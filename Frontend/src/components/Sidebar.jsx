@@ -150,7 +150,7 @@ function Sidebar({ onClose }) {
   const handleRenameSubmit = async (item) => {
     if (renameText && renameText.trim() !== "" && renameText !== item.title) {
       try {
-        await axios.put(`${BACKEND_URL}/deepseekai/rename`, {
+        await axios.put(`${BACKEND_URL}/"ThinkBot AI"./rename`, {
           chatId: item.chatId,
           newTitle: renameText
         }, { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }, withCredentials: true });
