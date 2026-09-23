@@ -1,11 +1,9 @@
 import os
-import json
-import requests
 import datetime
-from fastapi import FastAPI, HTTPException, Request, Response
+import httpx
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, Any
+from typing import Optional
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from bson import ObjectId
@@ -13,7 +11,9 @@ from bson import ObjectId
 # Load environment variables
 load_dotenv()
 
-# --- 1. MongoDB Connection ---
+# =========================================================
+# 1. MONGODB CONNECTION
+# =========================================================
 MONGO_URI = os.getenv("MONGO_URI")
 try:
     client = MongoClient(MONGO_URI)
@@ -24,18 +24,19 @@ try:
 except Exception as e:
     print(f"❌ Error: MongoDB Connection Failed! Details: {e}")
 
-# Google Gemini API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# --- 2. FastAPI App Setup ---
+# =========================================================
+# 2. FASTAPI APP & CORS SETUP (यह लाइन मिसिंग थी!)
+# =========================================================
 app = FastAPI(title="ThinkBot AI")
 
-# CORS Setup - React frontend (UPDATED WITH VERCEL URL)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://thinkbot-ai-liard.vercel.app", 
-        "http://localhost:4000"
+        "http://localhost:4000",
+        "http://localhost:5173"
     ], 
     allow_credentials=True,
     allow_methods=["*"],
@@ -44,8 +45,11 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "active", "message": "Backend is running"}
+    return {"status": "active", "message": "Backend is running smoothly"}
 
+# =========================================================
+# 3. CHAT HISTORY ROUTES
+# =========================================================
 @app.get("/deepseekai/history")
 async def get_history():
     try:
@@ -56,6 +60,7 @@ async def get_history():
                 doc["timestamp"] = doc["timestamp"].isoformat()
         return chat_docs
     except Exception as e:
+        print(f"⚠️ Error fetching history: {e}")
         return []
 
 def get_safe_query(target_id):
@@ -63,17 +68,9 @@ def get_safe_query(target_id):
     if target_id and len(str(target_id)) == 24:
         try:
             queries.append({"_id": ObjectId(target_id)})
-        except:
+        except Exception:
             pass
     return {"$or": queries}
-
-# =========================================================
-# 3. SIDEBAR ROUTES
-# =========================================================
-@app.get("/user/logout")
-@app.post("/user/logout")
-async def logout_user():
-    return {"success": True}
 
 @app.put("/deepseekai/rename")
 @app.put("/deepseekai/rename/{chat_id}")
@@ -87,6 +84,7 @@ async def rename_chat(request: Request, chat_id: Optional[str] = None):
             collection.update_many(get_safe_query(target_id), {"$set": {"title": new_title}})
         return {"success": True, "chatId": target_id, "title": new_title}
     except Exception as e:
+        print(f"⚠️ Error renaming chat: {e}")
         return {"success": False}
 
 @app.put("/deepseekai/pin")
@@ -101,6 +99,7 @@ async def pin_chat(request: Request, chat_id: Optional[str] = None):
             collection.update_many(get_safe_query(target_id), {"$set": {"isPinned": is_pinned}})
         return {"success": True}
     except Exception as e:
+        print(f"⚠️ Error pinning chat: {e}")
         return {"success": False}
 
 @app.delete("/deepseekai/history")
@@ -114,10 +113,24 @@ async def delete_chat(request: Request, chat_id: Optional[str] = None):
             collection.delete_many(get_safe_query(target_id)) 
         return {"success": True, "message": "Chat deleted"}
     except Exception as e:
+        print(f"⚠️ Error deleting chat: {e}")
         return {"success": False}
 
+@app.get("/user/logout")
+@app.post("/user/logout")
+async def logout_user():
+    return {"success": True}
+
+@app.post("/user/google-login")
+async def google_login(data: dict):
+    return {
+        "success": True,
+        "token": "thinkbot_token",
+        "user": {"_id": "user123", "firstName": "User"}
+    }
+
 # =========================================================
-# 4. AI Chat Route
+# 4. MAIN AI CHAT GENERATION ROUTE (ASYNC OPTIMIZED)
 # =========================================================
 @app.post("/deepseekai/promt")
 async def chat_endpoint(request: Request):
@@ -136,7 +149,7 @@ async def chat_endpoint(request: Request):
                         "timestamp": {"$gte": old_msg["timestamp"]}
                     })
             except Exception as e:
-                pass
+                print(f"⚠️ Error during message edit deletion: {e}")
 
         try:
             collection.insert_one({
@@ -146,22 +159,21 @@ async def chat_endpoint(request: Request):
                 "timestamp": datetime.datetime.utcnow()
             })
         except Exception as e:
-            pass
+            print(f"⚠️ Failed to save user message to DB: {e}")
 
-        headers = {"Content-Type": "application/json"}
-        
         system_instruction = """
         You are ThinkBot AI, an expert software engineer and smart academic assistant.
-        Strictly follow these 4 rules:
-        1. DETAIL & EXAMPLES (MANDATORY): Always provide highly detailed and comprehensive answers. Whenever the user asks a programming, coding, or technical question (like "what is java?"), YOU MUST provide code examples formatted properly in Markdown (e.g., ```java ... ```). Do not give short answers. Explain the concepts thoroughly with bullet points.
-        2. MOOD: Always start with a mood tag: [MOOD: happy], [MOOD: sad], or [MOOD: neutral].
-        3. FLASHCARDS: Format study cards, key definitions, or important points EXACTLY like this: [CARD: Question | Answer].
-        4. TIMER: If the user asks for focus mode, pomodoro, or a timer, format it EXACTLY like this: [TIMER: number_of_minutes].
+        Strictly follow these 4 core rules:
+        1. DETAIL & EXAMPLES (MANDATORY): Always provide highly detailed and comprehensive answers. Whenever the user asks a programming, coding, or technical question (e.g., "what is Java?", "explain pointers"), YOU MUST provide practical code examples formatted properly in Markdown (e.g., ```java ... ```). Do not give short answers. Explain concepts thoroughly using bullet points.
+        2. MOOD TAGGING: Always start your response with exactly ONE of these mood tags based on the user's sentiment: [MOOD: happy], [MOOD: sad], or [MOOD: neutral].
+        3. FLASHCARDS: If summarizing key points or definitions, format them EXACTLY like this: [CARD: Question | Answer].
+        4. FOCUS TIMER: If the user explicitly asks for a focus mode, study timer, or pomodoro, include this tag EXACTLY: [TIMER: number_of_minutes].
         """
         
-        prompt_text = f"SYSTEM INSTRUCTIONS:\n{system_instruction}\n\nUSER QUERY: {content}\n\nIMPORTANT: You MUST answer in detail, use bullet points, and include at least one Markdown code block (like ```java ... ```) for technical questions."
+        prompt_text = f"SYSTEM INSTRUCTIONS:\n{system_instruction}\n\nUSER QUERY: {content}\n\nIMPORTANT: You MUST answer in detail, use bullet points, and include at least one Markdown code block if the question is technical."
         
-        data = {"contents": [{"parts": [{"text": prompt_text}]}]}
+        payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+        headers = {"Content-Type": "application/json"}
         
         models_to_try = [
             "gemini-2.5-flash",
@@ -172,22 +184,27 @@ async def chat_endpoint(request: Request):
         ai_reply = None
         error_message = ""
 
-        for model in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-            
-            response = requests.post(url, headers=headers, json=data)
-            response_data = response.json()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for model in models_to_try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+                
+                try:
+                    response = await client.post(url, headers=headers, json=payload)
+                    response_data = response.json()
 
-            if "candidates" in response_data and len(response_data["candidates"]) > 0:
-                ai_reply = response_data['candidates'][0]['content']['parts'][0]['text']
-                print(f"✅ Success with Google Gemini model: {model}")
-                break
-            else:
-                error_message = response_data.get("error", {}).get("message", "Unknown API Error")
-                print(f"⚠️ Model {model} failed. Trying next...")
+                    if "candidates" in response_data and len(response_data["candidates"]) > 0:
+                        ai_reply = response_data['candidates'][0]['content']['parts'][0]['text']
+                        print(f"✅ Success with Google Gemini model: {model}")
+                        break
+                    else:
+                        error_message = response_data.get("error", {}).get("message", "Unknown API Error")
+                        print(f"⚠️ Model {model} failed. Error: {error_message}. Trying next...")
+                except Exception as req_err:
+                    print(f"⚠️ Network error with model {model}: {req_err}")
+                    error_message = str(req_err)
 
         if not ai_reply:
-            ai_reply = f"❌ Gemini API Error: All models failed. Last Error: {error_message}"
+            ai_reply = f"❌ Gemini API Error: All models failed to respond. Last Error: {error_message}"
 
         try:
             collection.insert_one({
@@ -197,7 +214,7 @@ async def chat_endpoint(request: Request):
                 "timestamp": datetime.datetime.utcnow()
             })
         except Exception as e:
-            pass
+            print(f"⚠️ Failed to save assistant message to DB: {e}")
 
         return {
             "success": True,
@@ -206,13 +223,5 @@ async def chat_endpoint(request: Request):
         }
         
     except Exception as e:
-        print(f"Server Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/user/google-login")
-async def google_login(data: dict):
-    return {
-        "success": True,
-        "token": "thinkbot_token",
-        "user": {"_id": "user123", "firstName": "User"}
-    }
+        print(f"❌ Critical Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error occurred while processing the request.")

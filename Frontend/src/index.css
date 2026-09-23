@@ -31,16 +31,13 @@
   display: none;
 }
 
-
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-
 html, body {
   color-scheme: dark;
 }
-
 
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
@@ -51,9 +48,56 @@ input:-webkit-autofill:active {
     background-color: transparent !important;
 }
 
-
 body, .chat-container {
   -webkit-overflow-scrolling: touch !important; /* पुराने फोंस में स्क्रॉलिंग को स्मूथ बनाता है */
   overscroll-behavior-y: none; /* स्क्रीन को फालतू में बाउंस होने से रोकता है */
   -webkit-font-smoothing: antialiased; /* टेक्स्ट को पिक्सल-परफेक्ट और क्रिस्प दिखाता है */
+}
+
+/* ========================================================= */
+/* --- NEW EMOTION-BASED RADIAL GLOW ANIMATION (3D EFFECT) --- */
+/* ========================================================= */
+
+/* बेस बैकग्राउंड जो पूरी स्क्रीन पर रहेगा (Deep Black) */
+.emotion-bg-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -10; /* मेन कंटेंट के पीछे रखने के लिए */
+  background-color: #050505; 
+}
+
+/* एनीमेशन वाली लेयर जो स्मूथली फेड होगी */
+.emotion-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  /* 1.5 सेकंड का स्मूथ फेड-इन और फेड-आउट ट्रांजीशन */
+  transition: opacity 1.5s ease-in-out, background 1.5s ease-in-out;
+}
+
+/* 3 कलर्स के लिए शानदार Radial Gradients (केंद्र में रंग, किनारों पर डार्कनेस) */
+.mood-angry {
+  background: radial-gradient(circle at 50% 50%, rgba(185, 28, 28, 0.25) 0%, rgba(5,5,5,1) 85%);
+  opacity: 1;
+}
+
+.mood-sad {
+  background: radial-gradient(circle at 50% 50%, rgba(29, 78, 216, 0.25) 0%, rgba(5,5,5,1) 85%);
+  opacity: 1;
+}
+
+.mood-happy {
+  background: radial-gradient(circle at 50% 50%, rgba(202, 138, 4, 0.25) 0%, rgba(5,5,5,1) 85%);
+  opacity: 1;
+}
+
+/* नार्मल होने पर वापस ब्लैक हो जाएगा */
+.mood-neutral {
+  opacity: 0; 
 }

@@ -271,7 +271,7 @@ function Sidebar({ onClose }) {
         <div className="flex flex-col flex-1 overflow-hidden pt-3">
           <div className="flex justify-between items-center mb-6 px-3">
             <div className="flex items-center gap-2 text-blue-500">
-               <div className="text-xl font-bold text-gray-200 tracking-wide">deepseek</div>
+               <div className="text-xl font-bold text-gray-200 tracking-wide">ThinkBot AI</div>
             </div>
             <div className="flex items-center gap-1">
               <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-md hover:bg-gray-800">

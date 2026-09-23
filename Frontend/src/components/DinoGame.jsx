@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+// 🔴 FIX 1: Image ko component ke bahar preload kiya gaya hai.
+// Isse app load hote hi image cache ho jayegi, aur offline mein turant dikhegi.
+const preloadedDragonImg = new Image();
+preloadedDragonImg.src = '/dragon-sprite.png';
+
 const DinoGame = () => {
   const canvasRef = useRef(null);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -14,10 +19,6 @@ const DinoGame = () => {
     let currentScore = 0;
     const keys = {};
 
-    // 1. Load the new Sprite Sheet
-    const dragonImg = new Image();
-    dragonImg.src = '/dragon-sprite.png'; // Make sure the image is in the public folder
-
     // 2. Dragon Object with Sprite Animation Logic
     const dino = {
       x: 50,
@@ -29,37 +30,31 @@ const DinoGame = () => {
       maxFrames: 3, // Total frames in your image
       
       draw: function () {
-        if (dragonImg.complete && dragonImg.width > 0) {
-          // Calculate the width of a single frame based on the total image width
-          const spriteWidth = dragonImg.width / this.maxFrames;
-          const spriteHeight = dragonImg.height;
+        // 🔴 FIX 1.1: preloadedDragonImg ka use kiya
+        if (preloadedDragonImg.complete && preloadedDragonImg.width > 0) {
+          const spriteWidth = preloadedDragonImg.width / this.maxFrames;
+          const spriteHeight = preloadedDragonImg.height;
 
-          // HTML5 Canvas drawImage for Sprite Sheets:
-          // ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight)
           ctx.drawImage(
-            dragonImg, 
-            this.frameX * spriteWidth, 0, // Crop starting point (X, Y)
-            spriteWidth, spriteHeight,    // Crop size
-            this.x, this.y,               // Destination on canvas
-            this.width, this.height       // Size on canvas
+            preloadedDragonImg, 
+            this.frameX * spriteWidth, 0,
+            spriteWidth, spriteHeight,    
+            this.x, this.y,               
+            this.width, this.height       
           );
 
-          // Flapping Animation Logic: Change frame every 8 game frames
           if (frames % 8 === 0) {
-            this.frameX = (this.frameX + 1) % this.maxFrames; // Cycles through 0, 1, 2
+            this.frameX = (this.frameX + 1) % this.maxFrames;
           }
         } else {
-          // Fallback box if image is not loaded yet
           ctx.fillStyle = '#22d3ee';
           ctx.fillRect(this.x, this.y, this.width, this.height);
         }
       },
       update: function () {
-        // Smooth Up & Down movement
         if (keys['ArrowUp'] || keys['KeyW']) this.y -= this.speed;
         if (keys['ArrowDown'] || keys['KeyS']) this.y += this.speed;
 
-        // Canvas boundary collision
         if (this.y < 0) this.y = 0;
         if (this.y + this.height > canvas.height) this.y = canvas.height - this.height;
 
@@ -67,11 +62,9 @@ const DinoGame = () => {
       }
     };
 
-    // Arrays for Game Entities
     const obstacles = [];
     const fireballs = [];
 
-    // Fireball Class
     class Fireball {
       constructor(x, y) {
         this.x = x;
@@ -92,7 +85,6 @@ const DinoGame = () => {
       }
     }
 
-    // Obstacle Class
     class Obstacle {
       constructor() {
         this.x = canvas.width;
@@ -113,15 +105,15 @@ const DinoGame = () => {
       }
     }
 
-    // Keydown Listeners
     const handleKeyDown = (e) => {
       keys[e.code] = true;
       if (e.code === 'Enter' && !isGameOver) {
-        // Spawn fireball near the dragon's mouth
         fireballs.push(new Fireball(dino.x + dino.width - 20, dino.y + dino.height / 2 - 10)); 
       }
       if (e.code === 'KeyR' && isGameOver) {
-        window.location.reload(); 
+        // 🔴 FIX 2: Page reload hataya. Sirf State reset kiya.
+        setScore(0);
+        setIsGameOver(false); 
       }
     };
 
@@ -132,7 +124,6 @@ const DinoGame = () => {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    // Collision Logic
     const checkCollision = (rect1, rect2) => {
       return (
         rect1.x < rect2.x + rect2.width &&
@@ -142,19 +133,16 @@ const DinoGame = () => {
       );
     };
 
-    // Main Game Loop
     const gameLoop = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       dino.update();
 
-      // Manage Fireballs
       fireballs.forEach((fire, fIndex) => {
         fire.update();
         if (fire.markedForDeletion) fireballs.splice(fIndex, 1);
       });
 
-      // Manage Obstacles
       if (frames % 70 === 0) {
         obstacles.push(new Obstacle());
       }
@@ -162,14 +150,12 @@ const DinoGame = () => {
       obstacles.forEach((obs, oIndex) => {
         obs.update();
 
-        // Game Over Collision
         if (checkCollision(dino, obs)) {
           setIsGameOver(true);
           cancelAnimationFrame(animationFrameId);
           return;
         }
 
-        // Fireball hits Obstacle Collision
         fireballs.forEach((fire, fIndex) => {
           if (checkCollision(fire, obs)) {
             obs.markedForDeletion = true;
@@ -191,7 +177,6 @@ const DinoGame = () => {
 
     gameLoop();
 
-    // Cleanup memory
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);

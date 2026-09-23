@@ -8,7 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { BACKEND_URL } from "../utils/utils"; 
 
 // ==========================================
-// 3D INTERACTIVE FLASHCARD 
+// 3D INTERACTIVE FLASHCARD COMPONENT
 // ==========================================
 const Flashcard = ({ front, back }) => {
   const [flipped, setFlipped] = useState(false);
@@ -28,7 +28,7 @@ const Flashcard = ({ front, back }) => {
 };
 
 // ==========================================
-// 1. AI Code Box Component 
+// AI CODE BOX COMPONENT
 // ==========================================
 const CodeBlock = ({ node, inline, className, children, ...props }) => {
   const [isCopied, setIsCopied] = useState(false);
@@ -91,7 +91,7 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 };
 
 // ==========================================
-// 2. USER MESSAGE BLOCK 
+// USER MESSAGE BLOCK
 // ==========================================
 const UserMessageBlock = ({ content, index, onUpdate, isLoading }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -181,7 +181,7 @@ const UserMessageBlock = ({ content, index, onUpdate, isLoading }) => {
 };
 
 // ==========================================
-// 3. MAIN PROMPT COMPONENT
+// MAIN CHAT INTERFACE COMPONENT
 // ==========================================
 function Promt() {
   let user = null;
@@ -201,7 +201,10 @@ function Promt() {
   const [loading, setLoading] = useState(false);
   const [limitError, setLimitError] = useState(""); 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [chatTheme, setChatTheme] = useState("bg-[#121212]"); 
+  
+  // Dynamic Mood State for the 3D Background Feature
+  const [currentMood, setCurrentMood] = useState("neutral"); 
+  
   const [activeTimer, setActiveTimer] = useState(null); 
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -282,14 +285,26 @@ function Promt() {
     return () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
   }, []);
 
+  // Process specific tags from the assistant's message (Mood and Timer)
   useEffect(() => {
     const lastMsg = messagesToShow[messagesToShow.length - 1];
     if (lastMsg && lastMsg.role === 'assistant') {
       const text = lastMsg.content;
-      if (text.toLowerCase().includes('[mood: happy]')) setChatTheme("bg-[#1a1025]"); // Elegant dark theme update
-      else if (text.toLowerCase().includes('[mood: sad]')) setChatTheme("bg-[#0d1624]");
-      else if (text.toLowerCase().includes('[mood: neutral]')) setChatTheme("bg-[#121212]");
       
+      // Dynamic Emotion Extraction
+      const moodMatch = text.match(/\[MOOD:\s*([a-zA-Z]+)\]/i);
+      if (moodMatch) {
+        const extractedMood = moodMatch[1].toLowerCase();
+        if (['happy', 'sad', 'angry'].includes(extractedMood)) {
+          setCurrentMood(extractedMood);
+        } else {
+          setCurrentMood("neutral");
+        }
+      } else {
+        setCurrentMood("neutral");
+      }
+      
+      // Timer Extraction
       const timerMatch = text.match(/\[TIMER:\s*(\d+)\]/i);
       if (timerMatch) setActiveTimer(parseInt(timerMatch[1]) * 60);
     }
@@ -303,6 +318,7 @@ function Promt() {
       cards.push({ q: match[1], a: match[2] });
     }
     
+    // Clean specific tags from the UI output
     let cleanText = rawText
       .replace(/\[MOOD:[^\]]+\]/gi, '')
       .replace(/\[TIMER:[^\]]+\]/gi, '')
@@ -336,7 +352,6 @@ function Promt() {
   };
 
   const handleUpdateMessage = async (msgIndex, newText) => {
-    // Keep exact same backend logic
     const trimmed = newText.trim();
     if (!trimmed) return;
     setLimitError(""); setLoading(true);
@@ -344,6 +359,7 @@ function Promt() {
     if (!activeChatId) { activeChatId = `chat_${Date.now()}`; navigate(`/?chat=${activeChatId}`, { replace: true }); }
     const newUserMsg = { role: "user", content: trimmed, chatId: activeChatId };
     let targetMessageId = null;
+    
     if (chatQuery) {
       const currentChatMessages = promt.filter(p => p.chatId === activeChatId || p._id === activeChatId);
       targetMessageId = currentChatMessages[msgIndex]?._id; 
@@ -355,6 +371,7 @@ function Promt() {
       const updatedSession = currentSession.slice(0, msgIndex);
       setCurrentSession([...updatedSession, newUserMsg]);
     }
+
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
@@ -380,11 +397,14 @@ function Promt() {
     if (!trimmed) return;
     setLimitError(""); setInputValue(""); setLoading(true); setIsExpanded(false); 
     if (inputRef.current) inputRef.current.style.height = "auto"; 
+    
     let activeChatId = chatQuery;
     if (!activeChatId) { activeChatId = `chat_${Date.now()}`; navigate(`/?chat=${activeChatId}`, { replace: true }); }
+    
     const newUserMsg = { role: "user", content: trimmed, chatId: activeChatId };
     setPromt((prev) => [...prev, newUserMsg]);
     setCurrentSession((prev) => [...prev, newUserMsg]);
+    
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No authentication token found");
@@ -439,7 +459,7 @@ function Promt() {
         .backface-hidden { backface-visibility: hidden; }
 
         /* ==========================================
-           NEW ANIMATION CSS (GLOW & GRADIENTS)
+           COMPONENT LEVEL EFFECTS
            ========================================== */
         @keyframes gradient-flow {
           0% { background-position: 0% 50%; }
@@ -467,9 +487,15 @@ function Promt() {
         .gemini-dot:nth-child(3) { animation-delay: 0s; }
       `}</style>
 
-      <div className={`flex flex-col h-full items-center justify-between flex-1 w-full px-4 pb-4 md:pb-8 transition-colors duration-1000 ${chatTheme}`}>
+      {/* NEW ANIMATED 3D RADIAL GLOW BACKGROUND LAYER */}
+      <div className="emotion-bg-layer">
+        <div className={`emotion-glow mood-${currentMood}`}></div>
+      </div>
+
+      {/* MAIN CHAT UI CONTAINER */}
+      <div className="relative z-10 flex flex-col h-full items-center justify-between flex-1 w-full px-4 pb-4 md:pb-8">
         
-        {/* NEW ANIMATED TIMER BANNER (Replaced Red Box) */}
+        {/* TIMER BANNER */}
         {activeTimer !== null && (
           <div className="w-full max-w-4xl mt-4">
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 backdrop-blur-md text-white px-5 py-3 rounded-2xl flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(99,102,241,0.5)] animate-bg-flow border border-indigo-400">
@@ -482,6 +508,7 @@ function Promt() {
           </div>
         )}
 
+        {/* WELCOME SCREEN */}
         {messagesToShow.length === 0 && !loading && (
           <div className="mt-8 md:mt-12 text-center flex flex-col items-center flex-shrink-0">
             <div className="flex items-center justify-center gap-3 mb-6">
@@ -497,6 +524,7 @@ function Promt() {
           </div>
         )}
 
+        {/* CHAT MESSAGES AREA */}
         <div ref={chatContainerRef} tabIndex={0} className="w-full max-w-4xl flex-1 overflow-y-auto mt-6 mb-4 space-y-4 px-2 pr-4 outline-none">
           {messagesToShow.map((msg, index) => (
             <div key={index} className={`w-full flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -514,9 +542,10 @@ function Promt() {
           <div ref={promtEndRef} />
         </div>
 
+        {/* INPUT AND ERRORS AREA */}
         <div className="w-full max-w-4xl relative flex-shrink-0">
           
-          {/* NEW ANIMATED ERROR BANNER (Replaced Red Box) */}
+          {/* LIMIT ERROR BANNER */}
           {limitError && (
             <div className="w-full text-center mb-4 animate-bounce">
               <span className="text-white bg-gradient-to-r from-pink-600 to-red-500 px-5 py-2 rounded-xl text-sm shadow-[0_0_15px_rgba(236,72,153,0.5)] font-medium tracking-wide">
@@ -525,9 +554,7 @@ function Promt() {
             </div>
           )}
 
-          {/* ==========================================
-              NEW ANIMATED INPUT CONTAINER 
-              ========================================== */}
+          {/* CHAT INPUT CONTAINER */}
           <div className={`relative p-[2px] rounded-3xl transition-all duration-500 flex flex-col ${isExpanded ? 'h-[50vh]' : ''} 
             ${loading ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-bg-flow ai-glow-border' : 'bg-gray-700/50 hover:bg-gray-600/60 border border-gray-600/50'}`}>
             
@@ -556,7 +583,6 @@ function Promt() {
                   )}
                 </div>
 
-                {/* NEW ANIMATED SEND BUTTON */}
                 <button 
                   onClick={handleSend} 
                   disabled={loading || !!limitError || !inputValue.trim()} 
