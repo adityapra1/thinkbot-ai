@@ -30,10 +30,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # --- 2. FastAPI App Setup ---
 app = FastAPI(title="ThinkBot AI")
 
-# CORS Setup - React frontend
+# CORS Setup - React frontend (UPDATED WITH VERCEL URL)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=[
+        "https://thinkbot-ai-liard.vercel.app", 
+        "http://localhost:5173"
+    ], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -114,7 +117,7 @@ async def delete_chat(request: Request, chat_id: Optional[str] = None):
         return {"success": False}
 
 # =========================================================
-# 4. AI Chat Route (🔥 URL BRACKET FIX)
+# 4. AI Chat Route
 # =========================================================
 @app.post("/deepseekai/promt")
 async def chat_endpoint(request: Request):
@@ -170,7 +173,6 @@ async def chat_endpoint(request: Request):
         error_message = ""
 
         for model in models_to_try:
-            # 🚀 यह URL अब बिल्कुल साफ है (कोई ब्रैकेट्स नहीं)
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
             
             response = requests.post(url, headers=headers, json=data)
