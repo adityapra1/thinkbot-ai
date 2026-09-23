@@ -486,7 +486,7 @@ function Promt() {
           <div className="mt-8 md:mt-12 text-center flex flex-col items-center flex-shrink-0">
             <div className="flex items-center justify-center gap-3 mb-6">
               {!logoError ? (
-                <img src="http://localhost:5174/logo.png" alt="ThinkBot Logo" className="h-6 md:h-8" onError={(e) => { setLogoError(true); e.target.style.display = 'none'; }} />
+                <img src="/logo.png" alt="ThinkBot Logo" className="h-6 md:h-8" onError={(e) => { setLogoError(true); e.target.style.display = 'none'; }} />
               ) : (
                 <div className="h-8 w-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">TB</div>
               )}
